@@ -46,7 +46,7 @@ class IslandWindow(QWidget):
         self._setup_layout()
         self._connect_events()
         self._start_cursor_tracker()
-        logger.info("Troko IslandWindow initialised")
+        logger.info("KAI IslandWindow initialised")
 
     # ------------------------------------------------------------------
     # Window setup
@@ -71,7 +71,7 @@ class IslandWindow(QWidget):
         self.setGeometry(x, y, w, h)
         self.setMinimumSize(w, h)
         self.setWindowOpacity(settings.ui_opacity)
-        self.setWindowTitle("Troko")
+        self.setWindowTitle("KAI")
 
     def _setup_layout(self) -> None:
         self.main_layout = QVBoxLayout(self)

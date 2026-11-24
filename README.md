@@ -1,4 +1,4 @@
-# Troko-Desk (KAI) – Asistente Virtual de Escritorio con Isla Superior Animada
+# KAI (Troko-Desk) – Asistente Virtual de Escritorio con Isla Superior Animada
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.12-blue?logo=python" />
@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/license-MIT-orange" />
 </p>
 
-**Troko-Desk** es un asistente virtual de escritorio para Windows 10/11 con interfaz tipo *notch* / isla superior flotante animada a 60 FPS, control por voz offline, inteligencia artificial híbrida (Llama 3.2 3B local por defecto) y automatización segura del sistema.
+**KAI** es un asistente virtual de escritorio para Windows 10/11 con interfaz tipo *notch* / isla superior flotante animada a 60 FPS, control por voz offline, inteligencia artificial híbrida (Llama 3.2 3B local por defecto) y automatización segura del sistema, construido siguiendo las especificaciones, expresividad y sistema de hábitos de Troko-Desk.
 
 ---
 

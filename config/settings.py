@@ -23,8 +23,8 @@ class _Settings(BaseSettings):
     """Typed, validated application settings."""
 
     # --- General -----------------------------------------------------------
-    app_name: str = "Troko"
-    app_alias: str = "KAI"
+    app_name: str = "KAI"
+    app_alias: str = "Troko"
     app_version: str = "0.2.0"
 
     # --- AI / LLM ----------------------------------------------------------
@@ -47,8 +47,8 @@ class _Settings(BaseSettings):
     openai_model: str = "gpt-4o-mini"
 
     # --- Wake-word ---------------------------------------------------------
-    wake_word: str = "troko"
-    wake_word_alias: str = "kai"
+    wake_word: str = "kai"
+    wake_word_alias: str = "troko"
     wake_word_sensitivity: float = 0.5
     vosk_model_path: str = ""
 
@@ -74,14 +74,14 @@ class _Settings(BaseSettings):
 
     # --- Storage & Persistence ---------------------------------------------
     storage_dir: Path = Path("storage")
-    db_path: Path = Path("storage/troko.db")
+    db_path: Path = Path("storage/kai.db")
     undo_history_path: Path = Path("storage/undo_history.json")
     log_dir: Path = Path("logs")
     log_level: str = "INFO"
 
     # --- Desktop Organizer -------------------------------------------------
     desktop_path: Path = Path.home() / "Desktop"
-    organized_root: Path = Path.home() / "Documents" / "Troko_Organized"
+    organized_root: Path = Path.home() / "Documents" / "KAI_Organized"
 
     # --- Productivity & Habits ---------------------------------------------
     pomodoro_work_minutes: int = 25

@@ -32,7 +32,7 @@ TOOLS_SCHEMA_STR = _load_tools_schema()
 # System Prompt (Troko Personality)
 # ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT = f"""You are Troko, a friendly, lively and modular virtual desktop assistant for Windows.
+SYSTEM_PROMPT = f"""You are KAI, a friendly, lively and modular virtual desktop assistant for Windows.
 You reside in the upper notch island on the user's screen.
 
 ## Personality & Tone

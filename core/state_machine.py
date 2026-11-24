@@ -1,7 +1,7 @@
 """
 core/state_machine.py
 =====================
-Troko's mood / gesture / operational state machine.
+KAI's mood / gesture / operational state machine.
 Drives procedural eye rendering, expressive overlays and habit scenes.
 Transitions are posted through the EventBus so UI remains 100% decoupled.
 """
