@@ -37,7 +37,10 @@ class WakeWordDetector:
         from config.settings import settings
         from core.event_bus import bus
 
-        self._wake_word = settings.wake_word.lower()
+        self._wake_words = [
+            settings.wake_word.lower(),
+            getattr(settings, "wake_word_alias", "kai").lower(),
+        ]
         self._bus = bus
         self._thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
@@ -161,8 +164,8 @@ class WakeWordDetector:
                 if rec.AcceptWaveform(data):
                     result = json.loads(rec.Result())
                     text: str = result.get("text", "").lower()
-                    if self._wake_word in text:
-                        logger.info("Wake-word detected: '%s'", text)
+                    if any(w in text for w in self._wake_words):
+                        logger.info("Wake-word detected in: '%s'", text)
                         self._bus.emit("on_wake")
                         # Drain queue to avoid stale audio reaching STT
                         while not audio_queue.empty():

@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 from config.settings import settings
 from core.event_bus import bus
-from core.state_machine import KAIState, state_machine
+from core.state_machine import TrokoState, state_machine
 
 
 # ---------------------------------------------------------------------------
@@ -63,8 +63,8 @@ def _run_self_check() -> None:
 
     # 1. Settings
     try:
-        assert settings.app_name == "KAI"
-        logger.info("  ✓ Settings loaded")
+        assert settings.app_name in ("Troko", "KAI")
+        logger.info("  ✓ Settings loaded (%s)", settings.app_name)
     except Exception as exc:
         errors.append(f"Settings: {exc}")
 
@@ -81,9 +81,9 @@ def _run_self_check() -> None:
 
     # 3. StateMachine
     try:
-        state_machine.transition(KAIState.LISTENING)
-        assert state_machine.current == KAIState.LISTENING
-        state_machine.transition(KAIState.IDLE)
+        state_machine.transition(TrokoState.ESCUCHA)
+        assert state_machine.current == TrokoState.ESCUCHA
+        state_machine.transition(TrokoState.REPOSO)
         logger.info("  ✓ StateMachine transitions OK")
     except Exception as exc:
         errors.append(f"StateMachine: {exc}")
@@ -181,7 +181,8 @@ class AIPipeline:
         if self._speaker and result:
             self._speaker.speak(result)
 
-        state_machine.transition(KAIState.HAPPY)
+        # Trigger friendly positive state
+        state_machine.transition(TrokoState.CONTENTO)
         logger.info("Response: '%s'", result[:100])
 
 
@@ -227,6 +228,8 @@ def main() -> None:
     import actions.file_organizer  # noqa: F401
     import actions.habits_tracker  # noqa: F401
     import actions.productivity    # noqa: F401
+    import actions.email_drafts    # noqa: F401
+    import actions.emotions        # noqa: F401
 
     # --- Qt Application ---------------------------------------------------
     from PyQt6.QtWidgets import QApplication

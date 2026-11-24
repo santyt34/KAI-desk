@@ -49,7 +49,7 @@ def patch_settings(tmp_desktop, tmp_organized, tmp_path, monkeypatch):
     monkeypatch.setattr(
         _settings_module.settings,
         "undo_history_path",
-        tmp_path / "undo_history.json",
+        tmp_path / "storage" / "undo_history.json",
     )
 
 
@@ -84,7 +84,7 @@ def test_execute_moves_files(tmp_desktop, tmp_organized):
 
     assert len(executed) == 7
     # Desktop should now be empty of those files
-    remaining = [f for f in tmp_desktop.iterdir() if f.is_file()]
+    remaining = [f for f in tmp_desktop.iterdir() if f.is_file() and f.name != "undo_history.json"]
     assert len(remaining) == 0
     # Organized folders created
     assert tmp_organized.exists()

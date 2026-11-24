@@ -1,13 +1,14 @@
 """
 audio/tts_speaker.py
 ====================
-Text-to-speech output with a simple FIFO queue.
+Text-to-speech output with a FIFO queue for Troko-Desk.
 Supported engines:
-  - edge-tts   (online, default – low latency, high quality)
-  - piper      (offline – install separately)
+  - kokoro     (offline neural voice via ONNX)
+  - edge-tts   (high quality online natural voices)
+  - piper      (offline lightweight CLI)
   - none       (silent mode)
 
-The speaker runs its own daemon thread and respects a mute flag.
+Transitions Troko's visual state to HABLA while speaking.
 """
 
 from __future__ import annotations
@@ -21,101 +22,103 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-_SENTINEL = None   # signals the worker to stop
+_SENTINEL = None
 
 
 class TTSSpeaker:
-    """
-    Queues text strings and speaks them in order.
-
-    Usage::
-
-        speaker = TTSSpeaker()
-        speaker.start()
-        speaker.speak("Hola, soy KAI.")
-        speaker.stop()
-    """
-
     def __init__(self) -> None:
         from config.settings import settings
         from core.event_bus import bus
+        from core.state_machine import TrokoState, state_machine
 
         self._settings = settings
         self._bus = bus
+        self._state_machine = state_machine
         self._queue: queue.Queue[Optional[str]] = queue.Queue()
         self._muted = not settings.tts_enabled
         self._thread: Optional[threading.Thread] = None
 
-        # Listen for mute toggle
         bus.subscribe("on_tts_mute", self._on_mute)
 
-    # ------------------------------------------------------------------
-    # Lifecycle
-    # ------------------------------------------------------------------
-
     def start(self) -> None:
-        self._thread = threading.Thread(
-            target=self._worker, daemon=True, name="tts-speaker"
-        )
+        self._thread = threading.Thread(target=self._worker, daemon=True, name="tts-speaker")
         self._thread.start()
         logger.info("TTSSpeaker started (engine=%s)", self._settings.tts_engine)
 
     def stop(self) -> None:
         self._queue.put(_SENTINEL)
         if self._thread:
-            self._thread.join(timeout=5.0)
+            self._thread.join(timeout=3.0)
 
     def speak(self, text: str) -> None:
-        """Enqueue *text* for speech synthesis."""
         if text:
             self._queue.put(text)
 
     def clear(self) -> None:
-        """Discard all pending speech."""
         while not self._queue.empty():
             try:
                 self._queue.get_nowait()
             except queue.Empty:
                 break
 
-    # ------------------------------------------------------------------
-    # Event handlers
-    # ------------------------------------------------------------------
-
     def _on_mute(self, muted: bool, **_) -> None:
         self._muted = muted
 
-    # ------------------------------------------------------------------
-    # Worker
-    # ------------------------------------------------------------------
-
     def _worker(self) -> None:
+        from core.state_machine import TrokoState
+
         while True:
             text = self._queue.get()
             if text is _SENTINEL:
                 break
             if self._muted:
-                logger.debug("TTS muted – skipping: %s", text[:50])
                 continue
+
             try:
                 self._bus.emit("on_tts_start", text=text)
+                self._state_machine.transition(TrokoState.HABLA)
                 self._synthesize(text)
+                self._state_machine.transition(TrokoState.REPOSO)
                 self._bus.emit("on_tts_done")
             except Exception:
-                logger.exception("TTS synthesis failed for: %s", text[:80])
+                logger.exception("TTS synthesis failed for: %s", text[:60])
+                self._state_machine.transition(TrokoState.REPOSO)
 
     def _synthesize(self, text: str) -> None:
         engine = self._settings.tts_engine.lower()
-        if engine == "edge-tts":
+        if engine == "kokoro":
+            if not self._kokoro_tts(text):
+                # Fallback to edge-tts if kokoro is unavailable
+                self._edge_tts(text)
+        elif engine == "edge-tts":
             self._edge_tts(text)
         elif engine == "piper":
             self._piper_tts(text)
         else:
-            logger.debug("TTS engine 'none' – silent")
+            logger.debug("TTS silent mode")
 
-    # ------------------------------------------------------------------
-    # edge-tts (async, run in a fresh event loop in this thread)
-    # ------------------------------------------------------------------
+    def _kokoro_tts(self, text: str) -> bool:
+        """Attempt Kokoro ONNX offline synthesis."""
+        try:
+            from kokoro_onnx import Kokoro
+            import sounddevice as sd
+            from pathlib import Path
+
+            model_dir = Path(self._settings.kokoro_model_dir)
+            model_path = model_dir / "kokoro-v0_19.onnx"
+            voices_path = model_dir / "voices.json"
+
+            if not model_path.exists():
+                return False
+
+            kokoro = Kokoro(str(model_path), str(voices_path))
+            samples, sample_rate = kokoro.create(text, voice="af_sarah", speed=1.0, lang="es")
+            sd.play(samples, sample_rate)
+            sd.wait()
+            return True
+        except Exception as exc:
+            logger.debug("Kokoro TTS not available: %s", exc)
+            return False
 
     def _edge_tts(self, text: str) -> None:
         try:
@@ -123,19 +126,19 @@ class TTSSpeaker:
             import sounddevice as sd
             import soundfile as sf
         except ImportError:
-            logger.error("edge-tts or sounddevice not installed")
+            logger.error("edge-tts / sounddevice / soundfile not installed")
             return
 
         voice = self._settings.tts_voice
 
         async def _run():
             communicate = edge_tts.Communicate(text, voice)
-            audio_buf = io.BytesIO()
+            buf = io.BytesIO()
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio":
-                    audio_buf.write(chunk["data"])
-            audio_buf.seek(0)
-            return audio_buf
+                    buf.write(chunk["data"])
+            buf.seek(0)
+            return buf
 
         loop = asyncio.new_event_loop()
         try:
@@ -143,27 +146,22 @@ class TTSSpeaker:
         finally:
             loop.close()
 
-        # Play via soundfile + sounddevice
         audio_buf.seek(0)
         try:
             data, samplerate = sf.read(audio_buf, dtype="float32")
             sd.play(data, samplerate)
             sd.wait()
-        except Exception:
-            logger.exception("Audio playback failed")
-
-    # ------------------------------------------------------------------
-    # piper TTS (optional, offline)
-    # ------------------------------------------------------------------
+        except Exception as exc:
+            logger.error("Audio playback error: %s", exc)
 
     def _piper_tts(self, text: str) -> None:
+        import subprocess
         try:
-            import subprocess
             result = subprocess.run(
                 ["piper", "--output-raw"],
                 input=text.encode(),
                 capture_output=True,
-                timeout=30,
+                timeout=25,
             )
             if result.returncode == 0 and result.stdout:
                 import sounddevice as sd
@@ -171,9 +169,5 @@ class TTSSpeaker:
                 audio = np.frombuffer(result.stdout, dtype=np.int16).astype(np.float32) / 32768.0
                 sd.play(audio, samplerate=22050)
                 sd.wait()
-            else:
-                logger.error("Piper TTS failed: %s", result.stderr.decode())
-        except FileNotFoundError:
-            logger.error("'piper' executable not found in PATH")
-        except Exception:
-            logger.exception("Piper TTS error")
+        except Exception as exc:
+            logger.error("Piper TTS error: %s", exc)

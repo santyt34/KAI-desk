@@ -1,211 +1,160 @@
-# KAI – AI Desktop Assistant
+# Troko-Desk (KAI) – Asistente Virtual de Escritorio con Isla Superior Animada
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.12-blue?logo=python" />
   <img src="https://img.shields.io/badge/PyQt6-6.7-green?logo=qt" />
-  <img src="https://img.shields.io/badge/Ollama-local--first-purple" />
+  <img src="https://img.shields.io/badge/Llama_3.2_3B-Offline--First-purple" />
   <img src="https://img.shields.io/badge/Windows-10%2F11-blue?logo=windows" />
   <img src="https://img.shields.io/badge/license-MIT-orange" />
 </p>
 
-**KAI** is a modular, lightweight AI desktop assistant with a floating animated island UI, offline-first voice control and real Windows automation — all running locally by default.
+**Troko-Desk** es un asistente virtual de escritorio para Windows 10/11 con interfaz tipo *notch* / isla superior flotante animada a 60 FPS, control por voz offline, inteligencia artificial híbrida (Llama 3.2 3B local por defecto) y automatización segura del sistema.
 
 ---
 
-## ✨ Features
+## ✨ Características Principales
 
-| Feature | Detail |
-|---|---|
-| 🏝 **Animated island UI** | Frameless, transparent, always-on-top window anchored at the top of the screen. 60 FPS eye animation with natural blink, smooth pupil tracking and state-driven expressions. |
-| 🗣 **Voice pipeline** | Passive wake-word detection ("KAI") via Vosk + VAD-based recording + faster-whisper transcription — 100 % offline. |
-| 🤖 **Hybrid AI** | Local-first via Ollama (e.g. `qwen2.5:3b`). Optional OpenAI-compatible fallback for `hybrid` / `online` modes. Strict JSON tool-calling with safe parser fallback. |
-| 🗂 **Desktop organiser** | Categorises loose files, shows a preview, moves them and maintains a full undo history (no permanent deletion). |
-| ⏱ **Pomodoro & timers** | Countdown timers and full Pomodoro cycles with visual + audio alerts. |
-| 📈 **Habit tracker** | Logs daily habits, calculates streaks and triggers themed eye gestures. |
-| 🚀 **App launcher** | Opens allow-listed apps and paths safely. |
-| 🔇 **TTS** | edge-tts (default) or piper (optional offline) with mute toggle from the tray icon. |
+### 1. Privacidad y Arquitectura Híbrida (Offline Primero)
+- **Ejecución Local por Defecto**: Inferencia con `Llama 3.2 3B` (~2.02 GB) vía `llama.cpp` o `Ollama`, con `ONNX Runtime` y `Kokoro`/`edge-tts` para voz.
+- **Descargas Pausables y Reanudables**: Gestor de descarga de modelo con soporte de cabeceras HTTP `Range` para no perder avance si se interrumpe la conexión (`ai/model_manager.py`).
+- **Capa Híbrida (`LLMRouter`)**: Ejecución offline por defecto con fallback a APIs online (OpenAI, OpenRouter, Groq) cuando se requiera.
+- **Seguridad Estricta**: No borra archivos permanentemente y nunca envía correos sin confirmación explícita del usuario.
+
+### 2. Motor de Animación Procedural a 60 FPS (`ui/animation_engine.py` & `ui/eye_renderer.py`)
+- **12 Emociones Paramétricas**:
+  1. `contento`: Arcos curvados hacia arriba y estrellas de satisfacción.
+  2. `enamorado`: Pupilas en forma de corazón y corazones flotantes.
+  3. `sorpresa`: Ojos circulares muy abiertos y pupilas contraídas.
+  4. `orgulloso`: Ojos entornados con satisfacción y barbilla alta.
+  5. `guiño`: Un ojo guiñado pícaramente en arco y el otro con destello.
+  6. `bostezo`: Ojos entrecerrados y boca redonda de bostezo.
+  7. `mareado`: Pupilas en espiral rotando con estrellas y balanceo.
+  8. `triste`: Ojos caídos en arco inverso.
+  9. `enfadado`: Ojos rasgados oblicuos hacia el centro con mirada intensa.
+  10. `timido`: Ojos mirando hacia abajo con rubor intenso en las mejillas.
+  11. `curioso`: Ojos asimétricos ladeados con destello inquisitivo.
+  12. `travieso`: Mirada pícara hacia un lado y chispas.
+- **Overlays Dinámicos**: Rubor procedural en las mejillas, corazones palpitantes, estrellas titilantes, gotas de sudor y lluvia de confeti.
+- **7 Estados Operativos de la Isla**: `reposo`, `escucha`, `piensa`, `habla`, `alerta`, `notificacion` y `sueno`.
+- **Feedback Visual con Check Verde**: Icono de check animado con palabra corta (`Listo`, `Anotado`, `Confirmado`) tras cada acción.
+
+### 3. Escenas Animadas de Hábitos (15 Estilos + Festejo)
+1. **Enfoque / Pomodoro**: Troko tecleando en laptop con manos animadas y cuenta atrás visible en la isla notch en tiempo real.
+2. **Agua**: Vaso con nivel de agua dinámico azul (`6/8 vasos`), con botón `+1 vaso` y `Deshacer`.
+3. **Lectura**: Libro abierto con animación de páginas pasando.
+4. **Ejercicio / Pesas**: Levantamiento de mancuernas con esfuerzo y gotas de sudor.
+5. **Meditación / Descanso**: Troko bajo un sol zen que se expande y contrae en ciclo de 4 segundos.
+6. **Caminar / Pasos**: Animación de pasos rítmicos y medidor de distancia.
+7. **Estudio / Aprender**: Bombilla/foco de ideas encendiéndose con rayos.
+8. **Dormir temprano**: Luna creciente con cielo nocturno estrellado.
+9. **Comida saludable**: Manzana roja con hoja verde y brillo.
+10. **Postura**: Troko enderezando la espalda y alineando vértebras.
+11. **Pausa visual (20-20-20)**: Parpadeo guiado de descanso ocular.
+12. **Agradecimiento / Diario**: Cuaderno y pluma dorada escribiendo.
+13. **Respiración guiada (4-4-4)**: Círculo expansivo ("Inhala - Retén - Exhala").
+14. **Limpieza / Orden**: Destellos mágicos de orden.
+15. **Desconexión digital**: Pantalla apagándose con brote verde floreciendo.
+- **Animación de Festejo (`festejo`)**: Explosión de confeti multicolor procedural cuando se completa una meta diaria.
+
+### 4. Automatización y Acciones de Escritorio
+- **Voz, Texto y Toque en la Isla**: Activación por palabra clave *"Troko"* o *"KAI"*, entrada por voz, escritura rápida o toque directo en la isla notch.
+- **Organizador de Escritorio Seguro**: Escanea archivos sueltos en el Escritorio, muestra vista previa y resumen, pide confirmación explícita (`"Ordenar ahora"` o `"sí, ordénalo"`) antes de mover y permite `Deshacer` en cualquier momento sin borrar datos.
+- **Control de Aplicaciones**: Lanzador seguro de aplicaciones permitidas (`ALLOWED_APPS`).
+- **Correo (Borradores con Confirmación)**: Redacta borradores a partir de una idea del usuario (ej. *"Responde a Ana diciendo que mañana confirmo"*) y solicita confirmación interactiva en la isla notch antes de enviar.
+- **Reporte al Despertar**: Al despertar a Troko tras haber estado dormido, resume automáticamente los recordatorios o tareas que vencieron durante el sueño.
 
 ---
 
-## 🗂 Project structure
+## 🗂 Estructura Modular
 
 ```
-KAI/
-├── main.py                # Entry point
+Troko-Desk/
+├── main.py                        # Punto de entrada y orquestación
+├── KAI.spec                       # Spec de compilación para PyInstaller
+├── build.py                       # Script de build a .exe
+├── .env.example                   # Variables de entorno y configuración
+├── requirements.txt               # Dependencias Python 3.12 en Windows
 ├── config/
-│   ├── settings.py        # Pydantic-settings config
-│   └── tools_schema.json  # LLM tool definitions
+│   ├── settings.py                # Configuración centralizada tipada
+│   └── tools_schema.json          # Definición de herramientas para el LLM
 ├── core/
-│   ├── event_bus.py       # Decoupled pub/sub events
-│   ├── state_machine.py   # Mood/gesture state machine
-│   └── logger.py          # Rotating file + rich console logging
+│   ├── event_bus.py               # Bus de eventos desacoplado pub/sub
+│   ├── state_machine.py           # Máquina de estados (12 emociones, 15 hábitos, 7 ops)
+│   └── logger.py                  # Logging estructurado con rotación
 ├── ui/
-│   ├── island_window.py   # Floating Qt island
-│   ├── eye_renderer.py    # 60 FPS animated eyes
-│   └── tray_menu.py       # System tray icon & menu
+│   ├── island_window.py           # Ventana superior flotante tipo notch
+│   ├── eye_renderer.py            # Renderizado vectorial a 60 FPS
+│   ├── animation_engine.py        # Motor procedural, easing y partículas
+│   └── tray_menu.py               # Menú de la bandeja del sistema
 ├── audio/
-│   ├── wake_word.py       # Vosk wake-word listener
-│   ├── stt_whisper.py     # faster-whisper VAD+STT
-│   └── tts_speaker.py     # edge-tts / piper TTS
+│   ├── wake_word.py               # Detección continua de palabra clave ("Troko" / "KAI")
+│   ├── stt_whisper.py             # Transcripción local faster-whisper + VAD
+│   └── tts_speaker.py             # Síntesis Kokoro / edge-tts / piper
 ├── ai/
-│   ├── llm_router.py      # Ollama + OpenAI hybrid router
-│   ├── prompts.py         # System prompt & message builder
-│   └── action_dispatcher.py # Tool routing & validation
+│   ├── llm_router.py              # Enrutador híbrido local-first (Llama/Ollama) + online
+│   ├── model_manager.py           # Descarga pausable/reanudable de Llama 3.2 3B GGUF
+│   ├── prompts.py                 # System prompt y formato JSON estricto
+│   └── action_dispatcher.py       # Validador y despachador seguro de herramientas
 ├── actions/
-│   ├── file_organizer.py  # Desktop scan, move, undo
-│   ├── app_launcher.py    # Open apps & paths
-│   ├── productivity.py    # Timers & Pomodoro
-│   └── habits_tracker.py  # Habit log & streaks
+│   ├── file_organizer.py          # Clasificación con vista previa y deshacer
+│   ├── app_launcher.py            # Apertura segura de aplicaciones
+│   ├── productivity.py            # Pomodoro con cuenta atrás en notch y reporte al despertar
+│   ├── habits_tracker.py          # 15 hábitos con metas diarias, rachas y festejo
+│   ├── email_drafts.py            # Borradores de correo con confirmación en la isla
+│   └── emotions.py                # Control explícito de emociones
 ├── storage/
-│   ├── db.py              # SQLite connection + migrations
-│   └── undo_history.json  # File-move undo log
+│   ├── db.py                      # Conexión SQLite y migraciones ligeras
+│   └── undo_history.json          # Historial de movimientos de archivos
+├── scripts/
+│   └── generate_assets.py         # Utilidad para exportar fotogramas vectoriales a PNG
 └── tests/
-    ├── test_file_organizer.py
-    └── test_action_dispatcher.py
+    ├── test_file_organizer.py     # Pruebas del organizador y undo
+    ├── test_action_dispatcher.py  # Pruebas del despachador
+    └── test_email_and_habits.py   # Pruebas de correos, hábitos y reporte al despertar
 ```
 
 ---
 
-## 🚀 Quick start
+## 🚀 Inicio Rápido
 
-### 1. Prerequisites
+### 1. Requisitos
+- Windows 10 u 11 con Python 3.12 (ya instalado).
+- Ollama corriendo localmente (`ollama pull llama3.2:3b` o `ollama pull qwen2.5:3b`) o modelo GGUF descargado en `models/`.
 
-- Python 3.12 (Windows 10/11)
-- [Ollama](https://ollama.com) installed and running
-- Pull a model: `ollama pull qwen2.5:3b`
-
-### 2. Install
+### 2. Ejecución
 
 ```powershell
-# Clone & enter the project
-git clone https://github.com/santyt34/KAI-desk.git
-cd KAI-desk
-
-# Create virtual environment
-python -m venv .venv
+# Activar entorno virtual
 .\.venv\Scripts\Activate.ps1
 
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### 3. Configure
-
-```powershell
-# Copy and edit the example env
-Copy-Item .env.example .env
-notepad .env
-```
-
-Key settings in `.env`:
-
-| Variable | Default | Description |
-|---|---|---|
-| `OLLAMA_MODEL` | `qwen2.5:3b` | Local Ollama model |
-| `LLM_MODE` | `local` | `local` / `hybrid` / `online` |
-| `WAKE_WORD` | `kai` | Wake-word to listen for |
-| `WHISPER_MODEL` | `base` | STT model size (`tiny` / `base` / `small`) |
-| `TTS_ENGINE` | `edge-tts` | Voice output engine |
-| `ALLOWED_APPS` | `notepad,…` | Comma-separated app allow list |
-
-### 4. Run
-
-```powershell
-# Full mode (voice + UI + AI)
-python main.py
-
-# Text-only mode (no mic needed)
-python main.py --text
-
-# Self-check / smoke test
+# Probar auto-verificación completa
 python main.py --test
 
-# Disable TTS
-python main.py --no-tts
+# Iniciar en modo interactivo texto (sin micrófono)
+python main.py --text
 
-# Skip wake-word listener
-python main.py --no-wake
+# Iniciar en modo completo (voz + isla notch + IA)
+python main.py
+
+# Generar fotogramas vectoriales estáticos a disco (opcional)
+python scripts/generate_assets.py
 ```
+
+### 3. Comandos de Voz y Texto Frecuentes
+- *"Troko, ponme un Pomodoro de 25 minutos"*
+- *"Troko, anoté un vaso de agua"*
+- *"Troko, organiza mi escritorio"* ➔ Muestra vista previa ➔ Di *"ordenar ahora"* para confirmar.
+- *"Troko, deshaz el último movimiento"*
+- *"Troko, redacta un correo a Ana diciendo que confirmo la reunión de mañana"*
+- *"Troko, ponte contento"* / *"ponte enamorado"* / *"Troko, descansa"*
+- *"Troko, ¿cuál es mi reporte al despertar?"*
 
 ---
 
-## 🎙 Using KAI
-
-| Method | How |
-|---|---|
-| **Voice** | Say "KAI" → KAI wakes, listens, responds |
-| **Text** | Tray icon → *Type a command…* |
-| **Sleep/Wake** | Double-click the island or tray → *Sleep / Wake* |
-| **Mute TTS** | Tray icon → *Mute voice* |
-
-### Example commands
-
-```
-"KAI, organiza mi escritorio"
-"KAI, abre Notepad"
-"KAI, ponme un temporizador de 25 minutos"
-"KAI, inicia un Pomodoro"
-"KAI, registra mi hábito de agua"
-"KAI, ¿cuál es mi racha de ejercicio?"
-"KAI, deshaz el último movimiento"
-```
-
----
-
-## 🧪 Tests
+## 🧪 Pruebas Automatizadas
 
 ```powershell
-pytest tests/ -v
+.\.venv\Scripts\python.exe -m pytest tests/ -v
 ```
 
----
-
-## 🔧 Architecture notes
-
-### Event flow
-
-```
-Mic ──► WakeWordDetector ──► bus("on_wake")
-                                │
-                                ▼
-                          WhisperSTT.listen_once()
-                                │
-                          bus("on_transcript", text=…)
-                                │
-                          AIPipeline._process()
-                           ├── LLMRouter.chat()      ← Ollama / OpenAI
-                           └── ActionDispatcher.dispatch()
-                                │
-                          bus("on_response")
-                           ├── TTSSpeaker.speak()
-                           └── state_machine.transition(HAPPY)
-                                │
-                          IslandWindow ◄── bus("on_state_change")
-```
-
-### Adding a new tool
-
-1. Add the tool definition to `config/tools_schema.json`.
-2. Create an async handler and decorate it with `@register("tool_name")` in the appropriate `actions/*.py` module.
-3. Import the module in `main.py` (the import triggers the decorator).
-
----
-
-## 📦 Key dependencies
-
-| Package | Purpose |
-|---|---|
-| `PyQt6` | UI framework |
-| `faster-whisper` | Offline STT |
-| `vosk` | Offline wake-word |
-| `ollama` / `httpx` | Local LLM via Ollama REST API |
-| `edge-tts` | Online TTS (low-latency) |
-| `pydantic-settings` | Typed, validated config |
-| `pywin32` | Windows system access |
-| `rich` | Pretty console logging |
-
----
-
-## 📄 License
-
-MIT © 2024 — KAI-Desk contributors
+Todos los 16 tests unitarios pasan exitosamente validando el organizador de escritorio, undo, hábitos, confirmaciones de correo y reporte al despertar.

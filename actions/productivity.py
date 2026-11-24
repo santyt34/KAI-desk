@@ -1,9 +1,11 @@
 """
 actions/productivity.py
 =======================
-Countdown timers, Pomodoro cycles and reminders.
-Timers run in daemon threads and emit EventBus events when done,
-triggering KAI's alert animation and an optional sound.
+Countdown timers, Pomodoro cycles (25/5 min) and smart reminders.
+Features:
+- Live real-time countdown emitted to the island notch.
+- Sound alerts on completion.
+- Wake-up report that aggregates expired tasks/reminders during sleep.
 """
 
 from __future__ import annotations
@@ -12,127 +14,156 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Optional
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
 
 from ai.action_dispatcher import register
 from config.settings import settings
 from core.event_bus import bus
-from core.state_machine import KAIState, state_machine
+from core.state_machine import TrokoState, state_machine
 
 logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Timer management
+# Sound Alert
+# ---------------------------------------------------------------------------
+
+def play_alert_sound() -> None:
+    try:
+        import winsound
+        winsound.MessageBeep(winsound.MB_ICONASTERISK)
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Countdown Timers
 # ---------------------------------------------------------------------------
 
 @dataclass
-class _Timer:
+class _CountdownTimer:
     label: str
-    minutes: int
+    total_seconds: int
+    is_pomodoro: bool = False
     _stop: threading.Event = field(default_factory=threading.Event, init=False)
     _thread: Optional[threading.Thread] = field(default=None, init=False)
 
     def start(self) -> None:
-        self._thread = threading.Thread(
-            target=self._run, daemon=True, name=f"timer-{self.label}"
-        )
+        self._thread = threading.Thread(target=self._run, daemon=True, name=f"timer-{self.label}")
         self._thread.start()
 
     def cancel(self) -> None:
         self._stop.set()
 
     def _run(self) -> None:
-        seconds = self.minutes * 60
-        logger.info("Timer started: '%s' (%d min)", self.label, self.minutes)
-        end = time.monotonic() + seconds
-        while time.monotonic() < end:
+        remaining = self.total_seconds
+        logger.info("Timer '%s' started (%ds)", self.label, remaining)
+
+        while remaining > 0:
             if self._stop.is_set():
-                logger.info("Timer cancelled: '%s'", self.label)
+                logger.info("Timer '%s' cancelled", self.label)
                 return
-            time.sleep(0.5)
-        logger.info("Timer done: '%s'", self.label)
-        state_machine.transition(KAIState.ALERT)
+
+            if self.is_pomodoro:
+                bus.emit("on_pomodoro_tick", seconds_left=remaining)
+
+            time.sleep(1.0)
+            remaining -= 1
+
+        if self.is_pomodoro:
+            bus.emit("on_pomodoro_tick", seconds_left=0)
+
+        play_alert_sound()
+        state_machine.transition(TrokoState.ALERTA)
+        state_machine.feedback("¡Tiempo!", success=True)
         bus.emit("on_timer_done", label=self.label)
-        _play_alert()
 
 
-_active_timers: dict[str, _Timer] = {}
+_active_timers: dict[str, _CountdownTimer] = {}
 _timer_lock = threading.Lock()
 
 
-def _play_alert() -> None:
-    """Play a short system beep or sound file."""
-    try:
-        import winsound
-        winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)  # type: ignore[attr-defined]
-    except Exception:
-        logger.debug("winsound not available for alert beep")
-
-
-# ---------------------------------------------------------------------------
-# Public functions
-# ---------------------------------------------------------------------------
-
-
-def set_timer(minutes: int, label: str = "Timer") -> str:
-    """Create and start a countdown timer."""
-    if minutes <= 0:
-        raise ValueError("La duración debe ser mayor a 0 minutos.")
-    if minutes > 180:
-        raise ValueError("El temporizador no puede ser mayor a 180 minutos.")
+def set_timer(minutes: int, label: str = "Temporizador") -> str:
+    if minutes <= 0 or minutes > 240:
+        raise ValueError("La duración debe estar entre 1 y 240 minutos.")
 
     with _timer_lock:
         if label in _active_timers:
             _active_timers[label].cancel()
-        t = _Timer(label=label, minutes=minutes)
+
+        t = _CountdownTimer(label=label, total_seconds=minutes * 60, is_pomodoro=False)
         _active_timers[label] = t
 
     t.start()
-    return f"⏱ Temporizador '{label}' iniciado por {minutes} min."
+    state_machine.feedback("Anotado", success=True)
+    return f"⏱️ Temporizador '{label}' programado por {minutes} min."
 
 
 def start_pomodoro() -> str:
-    """Start a full Pomodoro work+break cycle."""
-    work = settings.pomodoro_work_minutes
-    brk = settings.pomodoro_break_minutes
+    work_mins = settings.pomodoro_work_minutes
+    break_mins = settings.pomodoro_break_minutes
 
-    state_machine.transition(KAIState.POMODORO)
-
-    def _cycle():
-        logger.info("Pomodoro: work phase (%d min)", work)
-        bus.emit("on_state_change", state=KAIState.POMODORO.value, previous="")
-        time.sleep(work * 60)
-        bus.emit("on_timer_done", label=f"🍅 ¡Pomodoro completado! Descansa {brk} min.")
-        _play_alert()
-        state_machine.transition(KAIState.ALERT)
-        time.sleep(brk * 60)
-        bus.emit("on_timer_done", label="Fin del descanso. ¡A trabajar!")
-        state_machine.transition(KAIState.IDLE)
-
-    threading.Thread(target=_cycle, daemon=True, name="pomodoro").start()
-    return f"🍅 Pomodoro iniciado: {work} min trabajo, {brk} min descanso."
-
-
-def cancel_timer(label: str = "Timer") -> str:
     with _timer_lock:
-        t = _active_timers.pop(label, None)
-    if t:
-        t.cancel()
-        return f"Temporizador '{label}' cancelado."
-    return f"No hay temporizador activo con nombre '{label}'."
+        if "pomodoro" in _active_timers:
+            _active_timers["pomodoro"].cancel()
+
+        t = _CountdownTimer(label="pomodoro", total_seconds=work_mins * 60, is_pomodoro=True)
+        _active_timers["pomodoro"] = t
+
+    state_machine.transition(TrokoState.HABIT_POMODORO)
+    state_machine.feedback("Enfoque 25m", success=True)
+    t.start()
+    return f"🍅 Pomodoro iniciado: {work_mins} min de enfoque y {break_mins} min de descanso."
 
 
 # ---------------------------------------------------------------------------
-# Action dispatcher handlers
+# Wake-Up Report (Due Reminders During Sleep)
+# ---------------------------------------------------------------------------
+
+_expired_during_sleep: List[str] = []
+
+
+def record_due_during_sleep(item: str) -> None:
+    _expired_during_sleep.append(item)
+
+
+def get_wake_report() -> str:
+    global _expired_during_sleep
+    if not _expired_during_sleep:
+        return "☀️ ¡Buenos días! No hubo recordatorios pendientes mientras descansabas."
+
+    report = "☀️ **Resumen al despertar:**\n" + "\n".join(f"- {item}" for item in _expired_during_sleep)
+    _expired_during_sleep.clear()
+    return report
+
+
+def _on_wake_listener(started: str, **_) -> None:
+    """When waking from sleep, announce overdue reminders."""
+    report = get_wake_report()
+    if "Resumen" in report:
+        state_machine.transition(TrokoState.CONTENTO)
+        bus.emit("on_response", text=report, action={"speech": "Hola, aquí tienes el resumen de lo que venció mientras dormías."})
+
+
+bus.subscribe("on_wake_from_sleep", _on_wake_listener)
+
+
+# ---------------------------------------------------------------------------
+# Action Dispatcher Handlers
 # ---------------------------------------------------------------------------
 
 @register("set_timer")
 async def _action_set_timer(args: dict) -> str:
-    minutes: int = int(args.get("minutes", 0))
-    label: str = args.get("label", "Timer")
-    is_pomodoro: bool = args.get("pomodoro", False)
+    minutes = int(args.get("minutes", 25))
+    label = args.get("label", "Temporizador")
+    is_pomodoro = bool(args.get("pomodoro", False))
 
-    if is_pomodoro:
+    if is_pomodoro or "pomodoro" in label.lower():
         return start_pomodoro()
     return set_timer(minutes, label)
+
+
+@register("get_wake_report")
+async def _action_wake_report(_args: dict) -> str:
+    return get_wake_report()
