@@ -13,7 +13,9 @@ from __future__ import annotations
 import json
 import logging
 import queue
+import sys
 import threading
+from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -76,19 +78,58 @@ class WakeWordDetector:
         except Exception:
             logger.exception("WakeWordDetector crashed")
 
+    def _find_model_path(self) -> Optional[str]:
+        from config.settings import settings
+
+        # 1. Configured path
+        if settings.vosk_model_path:
+            p = Path(settings.vosk_model_path)
+            if p.exists():
+                return str(p)
+
+        # 2. Search candidates (current dir, app dir, exe dir)
+        search_dirs = [
+            Path.cwd(),
+            Path(__file__).parent.parent,
+        ]
+        if getattr(sys, "frozen", False):
+            search_dirs.append(Path(sys.executable).parent)
+            if hasattr(sys, "_MEIPASS"):
+                search_dirs.append(Path(sys._MEIPASS))
+
+        for base in search_dirs:
+            # Check direct folders
+            for candidate in base.glob("vosk-model*"):
+                if candidate.is_dir():
+                    return str(candidate)
+            model_sub = base / "model"
+            if model_sub.is_dir():
+                return str(model_sub)
+
+        return None
+
     def _run_vosk(self) -> None:
         import sounddevice as sd
         from vosk import KaldiRecognizer, Model, SetLogLevel
 
         SetLogLevel(-1)  # silence vosk's own logging
 
-        # Use the small English model bundled or downloaded
+        model_path = self._find_model_path()
         try:
-            model = Model(lang="en-us")
-        except Exception:
+            if model_path:
+                logger.info("Loading Vosk model from path: %s", model_path)
+                model = Model(model_path=model_path)
+            else:
+                logger.info("Attempting to load Vosk model by language 'es' / 'en-us'")
+                try:
+                    model = Model(lang="es")
+                except Exception:
+                    model = Model(lang="en-us")
+        except Exception as exc:
             logger.error(
-                "Vosk model not found. Download from https://alphacephei.com/vosk/models "
-                "and place in the working directory."
+                "Vosk model could not be loaded: %s. "
+                "Ensure a vosk-model folder is placed in the project root.",
+                exc,
             )
             return
 

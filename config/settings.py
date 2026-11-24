@@ -38,6 +38,7 @@ class _Settings(BaseSettings):
     # --- Wake-word ---------------------------------------------------------
     wake_word: str = "kai"
     wake_word_sensitivity: float = 0.5
+    vosk_model_path: str = ""
 
     # --- STT ---------------------------------------------------------------
     whisper_model: str = "base"
