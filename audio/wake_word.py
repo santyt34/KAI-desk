@@ -39,8 +39,9 @@ class WakeWordDetector:
 
         self._wake_words = [
             settings.wake_word.lower(),
-            getattr(settings, "wake_word_alias", "kai").lower(),
+            getattr(settings, "wake_word_alias", "troko").lower(),
         ]
+        self._wake_word = self._wake_words[0]
         self._bus = bus
         self._thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
@@ -59,7 +60,7 @@ class WakeWordDetector:
             target=self._run, daemon=True, name="wake-word-detector"
         )
         self._thread.start()
-        logger.info("WakeWordDetector started (word='%s')", self._wake_word)
+        logger.info("WakeWordDetector started (words=%s)", self._wake_words)
 
     def stop(self) -> None:
         """Signal the detector thread to stop."""

@@ -277,21 +277,24 @@ def main() -> None:
     if not args.no_wake and not args.text:
         def _start_wake_when_ready():
             import time
-            # Wait for model to load (max 60s)
+            # Wait for Whisper model to be fully loaded
             for _ in range(120):
-                if stt is not None:
+                if stt is not None and stt._model is not None:
                     break
                 time.sleep(0.5)
+
             try:
                 from audio.wake_word import WakeWordDetector
                 detector = WakeWordDetector()
 
                 def _on_wake(**_):
                     if stt:
+                        logger.info("Wake event received: starting STT listening...")
                         stt.listen_once()
 
                 bus.subscribe("on_wake", _on_wake)
                 detector.start()
+                logger.info("Listening for wake-word active ('%s' / '%s')", settings.wake_word, getattr(settings, 'wake_word_alias', 'troko'))
             except Exception:
                 logger.exception("Wake-word detector failed to start")
 
