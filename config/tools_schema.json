@@ -1,0 +1,110 @@
+{
+  "tools": [
+    {
+      "name": "open_app",
+      "description": "Open an allowed application or file on the system.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string",
+            "description": "App name (e.g. 'notepad', 'chrome') or absolute file path."
+          }
+        },
+        "required": ["target"]
+      }
+    },
+    {
+      "name": "organize_desktop",
+      "description": "Scan the Desktop for loose files and move them into categorised folders.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "preview": {
+            "type": "boolean",
+            "description": "If true, only return a preview of planned moves without executing.",
+            "default": true
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "undo_last_move",
+      "description": "Revert the last file-organisation action.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "set_timer",
+      "description": "Set a countdown timer or Pomodoro session.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "minutes": {
+            "type": "integer",
+            "description": "Duration in minutes."
+          },
+          "label": {
+            "type": "string",
+            "description": "Optional label for the timer (e.g. 'Take a break')."
+          },
+          "pomodoro": {
+            "type": "boolean",
+            "description": "If true, start a full Pomodoro cycle.",
+            "default": false
+          }
+        },
+        "required": ["minutes"]
+      }
+    },
+    {
+      "name": "log_habit",
+      "description": "Record that the user completed a daily habit.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "habit_name": {
+            "type": "string",
+            "description": "Name of the habit (e.g. 'hydration', 'workout', 'reading')."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional free-text note."
+          }
+        },
+        "required": ["habit_name"]
+      }
+    },
+    {
+      "name": "get_habit_streak",
+      "description": "Return the current streak and history for a habit.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "habit_name": {
+            "type": "string"
+          }
+        },
+        "required": ["habit_name"]
+      }
+    },
+    {
+      "name": "answer",
+      "description": "Respond to the user with a plain-text message (no tool action needed).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The reply to show / speak to the user."
+          }
+        },
+        "required": ["text"]
+      }
+    }
+  ]
+}
