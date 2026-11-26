@@ -54,6 +54,15 @@ _MIGRATIONS = [
         moved_at    TEXT    NOT NULL DEFAULT (datetime('now'))
     );
     """,
+    # v2 – tasks table
+    """
+    CREATE TABLE IF NOT EXISTS tasks (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        title       TEXT    NOT NULL,
+        completed   INTEGER NOT NULL DEFAULT 0,
+        created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+    """,
 ]
 
 
@@ -138,3 +147,35 @@ class DB:
                 self.conn.commit()
 
         logger.debug("DB: schema up to date (v%d)", len(_MIGRATIONS) - 1)
+
+
+# ---------------------------------------------------------------------------
+# Convenience Task Functions
+# ---------------------------------------------------------------------------
+
+
+def get_tasks() -> list[dict]:
+    with DB() as db:
+        rows = db.execute("SELECT id, title, completed, created_at FROM tasks ORDER BY id DESC").fetchall()
+        return [{"id": r["id"], "title": r["title"], "completed": bool(r["completed"]), "created_at": r["created_at"]} for r in rows]
+
+
+def add_task(title: str) -> dict:
+    clean_title = title.strip()
+    if not clean_title:
+        return {}
+    with DB() as db:
+        cur = db.execute("INSERT INTO tasks (title, completed) VALUES (?, 0)", (clean_title,))
+        task_id = cur.lastrowid
+        return {"id": task_id, "title": clean_title, "completed": False}
+
+
+def toggle_task(task_id: int, completed: bool) -> None:
+    with DB() as db:
+        db.execute("UPDATE tasks SET completed = ? WHERE id = ?", (1 if completed else 0, task_id))
+
+
+def delete_task(task_id: int) -> None:
+    with DB() as db:
+        db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+

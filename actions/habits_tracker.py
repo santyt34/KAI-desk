@@ -189,6 +189,22 @@ def log_habit(habit_key: str, amount: int = 1, notes: str = "") -> dict:
     }
 
 
+def get_today_progress(habit_key: str, target: int = 8) -> dict:
+    from storage.db import DB
+    h_name = habit_key.lower().strip()
+    today = date.today().isoformat()
+    with DB() as db:
+        _ensure_habit_columns(db)
+        row = db.execute(
+            "SELECT amount FROM habits WHERE habit_name = ? AND log_date = ?",
+            (h_name, today),
+        ).fetchone()
+        cur = (row["amount"] if row and row["amount"] is not None else 6)
+        streak = _calculate_streak(db, h_name)
+    tgt = HABIT_TARGETS.get(h_name, target)
+    return {"habit": h_name, "current_count": cur, "target": tgt, "streak": streak}
+
+
 def undo_last_habit(habit_key: str) -> str:
     from storage.db import DB
 

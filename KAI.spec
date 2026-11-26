@@ -71,6 +71,7 @@ hiddenimports = [
     "core.state_machine",
     "core.logger",
     "ui.island_window",
+    "ui.notch_panel",
     "ui.eye_renderer",
     "ui.animation_engine",
     "ui.scene_generator",
