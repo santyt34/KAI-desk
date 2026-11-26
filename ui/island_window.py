@@ -1,9 +1,10 @@
 """
-ui/island_window.py
-===================
+src/ui/island_window.py
+=======================
 Frameless, transparent, always-on-top floating upper "island" / notch window
-for Troko-Desk. Anchored at the top-centre of the display.
-Hosts EyeRenderer, habit interaction controls, feedback badges and action confirmations.
+for KAI. Anchored at the top-centre of the display.
+Hosts EyeRenderer, hover animations, habit interaction controls, feedback badges
+and action confirmations.
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ import logging
 from typing import Optional
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSlot
-from PyQt6.QtGui import QCursor, QScreen
+from PyQt6.QtGui import QCursor, QEnterEvent, QScreen
 from PyQt6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -33,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 class IslandWindow(QWidget):
     """
-    Main floating upper island window for Troko.
+    Main floating upper notch window for KAI.
     Flags: FramelessWindowHint | WindowStaysOnTopHint | Tool
     """
 
@@ -63,11 +64,14 @@ class IslandWindow(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
 
         screen: QScreen = QApplication.primaryScreen()
-        screen_geom = screen.availableGeometry()
+        screen_geom = screen.availableGeometry() if screen else None
         w = settings.ui_width
         h = settings.ui_height
-        x = screen_geom.center().x() - w // 2
-        y = screen_geom.top() + 4
+        if screen_geom:
+            x = screen_geom.center().x() - w // 2
+            y = screen_geom.top() + 4
+        else:
+            x, y = 100, 10
         self.setGeometry(x, y, w, h)
         self.setMinimumSize(w, h)
         self.setWindowOpacity(settings.ui_opacity)
@@ -82,12 +86,53 @@ class IslandWindow(QWidget):
         self.eye_renderer = EyeRenderer(parent=self)
         self.main_layout.addWidget(self.eye_renderer)
 
-        # Contextual confirmation action bar (hidden by default)
+        # Habit Quick Controls Bar (Visible during habits like Water or Pomodoro)
+        self.habit_bar = QFrame(self)
+        self.habit_bar.setStyleSheet(
+            """
+            QFrame {
+                background-color: #121422;
+                border-radius: 10px;
+                border: 1px solid #7F5AF0;
+                padding: 2px;
+            }
+            QPushButton {
+                background-color: #1E2238;
+                color: #FFFFFF;
+                border: 1px solid #3B4261;
+                border-radius: 6px;
+                padding: 3px 8px;
+                font-size: 11px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #7F5AF0;
+            }
+            """
+        )
+        self.habit_layout = QHBoxLayout(self.habit_bar)
+        self.habit_layout.setContentsMargins(6, 2, 6, 2)
+        self.habit_layout.setSpacing(6)
+
+        self.btn_habit_action1 = QPushButton("+1 Vaso", self.habit_bar)
+        self.btn_habit_action2 = QPushButton("Deshacer", self.habit_bar)
+        self.btn_habit_action1.clicked.connect(self._on_habit_action1_click)
+        self.btn_habit_action2.clicked.connect(self._on_habit_action2_click)
+
+        self.habit_layout.addStretch()
+        self.habit_layout.addWidget(self.btn_habit_action1)
+        self.habit_layout.addWidget(self.btn_habit_action2)
+        self.habit_layout.addStretch()
+
+        self.habit_bar.hide()
+        self.main_layout.addWidget(self.habit_bar)
+
+        # Contextual confirmation action bar (for file organization, email drafts)
         self.action_bar = QFrame(self)
         self.action_bar.setStyleSheet(
             """
             QFrame {
-                background-color: #161824;
+                background-color: #141726;
                 border-radius: 12px;
                 border: 1px solid #7F5AF0;
                 padding: 4px;
@@ -101,8 +146,16 @@ class IslandWindow(QWidget):
                 font-size: 11px;
                 font-weight: bold;
             }
-            QPushButton:hover {
-                background-color: #7F5AF0;
+            QPushButton#btnConfirm {
+                background-color: #2CB67D;
+                color: #FFFFFF;
+                border: none;
+            }
+            QPushButton#btnConfirm:hover {
+                background-color: #249A68;
+            }
+            QPushButton#btnCancel:hover {
+                background-color: #E53935;
             }
             QLabel {
                 color: #EEEEEE;
@@ -115,7 +168,9 @@ class IslandWindow(QWidget):
 
         self.action_label = QLabel("Confirmación", self.action_bar)
         self.btn_confirm = QPushButton("Confirmar", self.action_bar)
+        self.btn_confirm.setObjectName("btnConfirm")
         self.btn_cancel = QPushButton("Cancelar", self.action_bar)
+        self.btn_cancel.setObjectName("btnCancel")
 
         self.btn_confirm.clicked.connect(self._on_action_confirm)
         self.btn_cancel.clicked.connect(self._on_action_cancel)
@@ -162,12 +217,48 @@ class IslandWindow(QWidget):
 
         self.eye_renderer.set_state(troko_state)
 
-        # Adjust height if habit scene needs more room
-        if "habit" in state or troko_state in (TrokoState.HABIT_AGUA, TrokoState.HABIT_POMODORO):
-            self.setFixedHeight(settings.ui_height + 10)
+        st_val = str(troko_state.value if hasattr(troko_state, "value") else troko_state).lower()
+
+        # Update Habit Control Bar
+        if st_val == "agua":
+            self.btn_habit_action1.setText("+1 Vaso")
+            self.btn_habit_action2.setText("Deshacer")
+            self.habit_bar.show()
+            self.setFixedHeight(settings.ui_height + 36)
+        elif st_val == "pomodoro":
+            self.btn_habit_action1.setText("Pausar")
+            self.btn_habit_action2.setText("Detener")
+            self.habit_bar.show()
+            self.setFixedHeight(settings.ui_height + 36)
         else:
+            self.habit_bar.hide()
             if not self.action_bar.isVisible():
                 self.setFixedHeight(settings.ui_height)
+
+    # ------------------------------------------------------------------
+    # Habit Button Actions
+    # ------------------------------------------------------------------
+
+    def _on_habit_action1_click(self) -> None:
+        st_val = str(state_machine.current.value if hasattr(state_machine.current, "value") else state_machine.current).lower()
+        if st_val == "agua":
+            from actions.habits_tracker import log_habit
+            res = log_habit("agua", amount=1)
+            self.eye_renderer.set_water_progress(res.get("current_count", 6))
+            state_machine.feedback("+1 Vaso", success=True)
+        elif st_val == "pomodoro":
+            state_machine.feedback("Pomodoro", success=True)
+
+    def _on_habit_action2_click(self) -> None:
+        st_val = str(state_machine.current.value if hasattr(state_machine.current, "value") else state_machine.current).lower()
+        if st_val == "agua":
+            from actions.habits_tracker import log_habit
+            res = log_habit("agua", amount=-1)
+            self.eye_renderer.set_water_progress(max(0, res.get("current_count", 5)))
+            state_machine.feedback("Deshecho", success=True)
+        elif st_val == "pomodoro":
+            state_machine.transition(TrokoState.REPOSO)
+            state_machine.feedback("Listo", success=True)
 
     # ------------------------------------------------------------------
     # Contextual Confirmation UI
@@ -177,7 +268,7 @@ class IslandWindow(QWidget):
         self._confirmation_data = callback_data
         self.action_label.setText(title)
         self.action_bar.show()
-        self.setFixedHeight(settings.ui_height + 42)
+        self.setFixedHeight(settings.ui_height + 44)
 
     def _hide_confirmation_bar(self) -> None:
         self.action_bar.hide()
@@ -197,8 +288,16 @@ class IslandWindow(QWidget):
         self._hide_confirmation_bar()
 
     # ------------------------------------------------------------------
-    # Cursor Tracking
+    # Hover & Cursor Tracking
     # ------------------------------------------------------------------
+
+    def enterEvent(self, event: QEnterEvent) -> None:
+        self.eye_renderer.set_hover(True)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        self.eye_renderer.set_hover(False)
+        super().leaveEvent(event)
 
     def _start_cursor_tracker(self) -> None:
         self._cursor_timer = QTimer(self)
@@ -222,22 +321,24 @@ class IslandWindow(QWidget):
             self.move(event.globalPosition().toPoint() - self._drag_pos)
 
     def mouseReleaseEvent(self, event) -> None:
-        # Tap on island triggers active state or cycles emotion
+        # Tap on island triggers active state or listen
         if event.button() == Qt.MouseButton.LeftButton and hasattr(self, "_drag_pos"):
             cur = state_machine.current
-            if cur == TrokoState.HABIT_AGUA:
-                # Tap on water habit: +1 glass!
+            st_val = str(cur.value if hasattr(cur, "value") else cur).lower()
+            if st_val == "agua":
                 from actions.habits_tracker import log_habit
                 res = log_habit("agua", amount=1)
                 self.eye_renderer.set_water_progress(res.get("current_count", 6))
                 state_machine.feedback("+1 Vaso", success=True)
-            elif cur == TrokoState.REPOSO:
-                # Tap when idle wakes listen mode
+            elif st_val == "reposo":
                 bus.emit("on_wake")
+                state_machine.transition(TrokoState.ESCUCHA)
 
     def mouseDoubleClickEvent(self, event) -> None:
         """Double click toggles sleep / wake."""
-        if state_machine.current == TrokoState.SUENO:
+        cur = state_machine.current
+        st_val = str(cur.value if hasattr(cur, "value") else cur).lower()
+        if st_val == "sueno":
             state_machine.wake()
             state_machine.feedback("¡Despierto!", success=True)
             bus.emit("on_wake")

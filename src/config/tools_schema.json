@@ -1,0 +1,160 @@
+{
+  "tools": [
+    {
+      "name": "open_app",
+      "description": "Open an allowed application or file on the system.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string",
+            "description": "App name (e.g. 'notepad', 'chrome') or file path."
+          }
+        },
+        "required": ["target"]
+      }
+    },
+    {
+      "name": "organize_desktop",
+      "description": "Scan Desktop loose files and prepare categorised preview. Does NOT execute without user confirmation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "confirm": {
+            "type": "boolean",
+            "description": "True only if the user explicitly said 'ordenar ahora' or 'sí, ordénalo'.",
+            "default": false
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "undo_last_move",
+      "description": "Revert the last file-organisation action without permanent data loss.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "set_timer",
+      "description": "Set a countdown timer or a 25/5 Pomodoro focus session visible on the notch.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "minutes": {
+            "type": "integer",
+            "description": "Duration in minutes."
+          },
+          "label": {
+            "type": "string",
+            "description": "Timer label."
+          },
+          "pomodoro": {
+            "type": "boolean",
+            "description": "True to start an interactive Pomodoro cycle with typing scene.",
+            "default": false
+          }
+        },
+        "required": ["minutes"]
+      }
+    },
+    {
+      "name": "log_habit",
+      "description": "Increment or complete a habit among the 15 available styles (agua, pomodoro, lectura, ejercicio, meditacion, caminar, estudio, etc.).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "habit_name": {
+            "type": "string",
+            "description": "Name of the habit: agua, lectura, ejercicio, meditacion, caminar, estudio, postura, etc."
+          },
+          "amount": {
+            "type": "integer",
+            "description": "Amount to increment (e.g., 1 for +1 glass of water).",
+            "default": 1
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional note."
+          }
+        },
+        "required": ["habit_name"]
+      }
+    },
+    {
+      "name": "get_habit_streak",
+      "description": "Return current streaks and progress for a habit.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "habit_name": {
+            "type": "string"
+          }
+        },
+        "required": ["habit_name"]
+      }
+    },
+    {
+      "name": "draft_email",
+      "description": "Draft an email from an idea and present it on the island for explicit user review and confirmation before sending.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "recipient": {
+            "type": "string",
+            "description": "Recipient name or email address."
+          },
+          "subject": {
+            "type": "string",
+            "description": "Subject of the email."
+          },
+          "body": {
+            "type": "string",
+            "description": "Composed body of the email."
+          }
+        },
+        "required": ["recipient", "body"]
+      }
+    },
+    {
+      "name": "get_wake_report",
+      "description": "Get summary of tasks, habits or reminders that were due while Troko was sleeping.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "set_emotion",
+      "description": "Set Troko's emotion explicitly: contento, enamorado, sorpresa, orgulloso, guiño, bostezo, mareado, triste, enfadado, timido, curioso, travieso.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "emotion": {
+            "type": "string",
+            "description": "Emotion key."
+          }
+        },
+        "required": ["emotion"]
+      }
+    },
+    {
+      "name": "answer",
+      "description": "Respond directly with speech/text without triggering a system action.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The response text."
+          }
+        },
+        "required": ["text"]
+      }
+    }
+  ]
+}

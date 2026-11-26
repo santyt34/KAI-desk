@@ -166,8 +166,24 @@ class WakeWordDetector:
                     result = json.loads(rec.Result())
                     text: str = result.get("text", "").lower()
                     if any(w in text for w in self._wake_words):
-                        logger.info("Wake-word detected in: '%s'", text)
+                        logger.info("Wake-word detected in full result: '%s'", text)
                         self._bus.emit("on_wake")
-                        # Drain queue to avoid stale audio reaching STT
+                        rec.Reset()
                         while not audio_queue.empty():
-                            audio_queue.get_nowait()
+                            try:
+                                audio_queue.get_nowait()
+                            except queue.Empty:
+                                break
+                else:
+                    partial_str = rec.PartialResult()
+                    partial = json.loads(partial_str).get("partial", "").lower()
+                    words = partial.split()
+                    if any(w in words for w in self._wake_words):
+                        logger.info("Wake-word detected immediately in partial result: '%s'", partial)
+                        self._bus.emit("on_wake")
+                        rec.Reset()
+                        while not audio_queue.empty():
+                            try:
+                                audio_queue.get_nowait()
+                            except queue.Empty:
+                                break

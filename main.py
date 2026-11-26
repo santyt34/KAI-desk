@@ -15,9 +15,15 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from pathlib import Path
 import sys
 import threading
 from typing import Optional
+
+# Add project root and src to sys.path
+root_dir = Path(__file__).resolve().parent
+sys.path.insert(0, str(root_dir / "src"))
+sys.path.insert(0, str(root_dir))
 
 # ---------------------------------------------------------------------------
 # Bootstrap: logging must be set up before importing other modules
@@ -157,7 +163,7 @@ class AIPipeline:
 
     async def _process(self, text: str) -> None:
         logger.info("Processing: '%s'", text)
-        state_machine.transition(KAIState.THINKING)
+        state_machine.transition(TrokoState.PIENSA)
 
         messages = self._build_messages(text, history=self._history)
         action = await self._router.chat(messages)

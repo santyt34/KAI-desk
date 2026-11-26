@@ -1,9 +1,8 @@
 """
-core/state_machine.py
-=====================
-KAI's mood / gesture / operational state machine.
+src/core/state_machine.py
+=========================
+KAI's mood, gesture and operational state machine.
 Drives procedural eye rendering, expressive overlays and habit scenes.
-Transitions are posted through the EventBus so UI remains 100% decoupled.
 """
 
 from __future__ import annotations
@@ -26,11 +25,11 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-class TrokoState(str, Enum):
+class KAIState(str, Enum):
     """
-    Complete state catalog for Troko-Desk:
+    Catalog of states for KAI:
     - 7 Operational states
-    - 12 Emotions
+    - 12 Parametric emotions
     - 15 Habit scenes
     - 1 Celebration scene
     """
@@ -44,145 +43,147 @@ class TrokoState(str, Enum):
     NOTIFICACION = "notificacion"  # notification badge
     SUENO = "sueno"                # sleeping
 
-    # --- 12 Expressive Emotions --------------------------------------------
+    # English aliases for operational states
+    IDLE = "reposo"
+    LISTENING = "escucha"
+    THINKING = "piensa"
+    SPEAKING = "habla"
+    ALERT = "alerta"
+    NOTIFICATION = "notificacion"
+    SLEEP = "sueno"
+
+    # --- 12 Emotions -------------------------------------------------------
     CONTENTO = "contento"          # happy
-    ENAMORADO = "enamorado"        # in love / heart eyes
+    ENAMORADO = "enamorado"        # in love / hearts
     SORPRESA = "sorpresa"          # surprise / wide eyes
     ORGULLOSO = "orgulloso"        # proud
     GUINO = "guino"                # wink
     BOSTEZO = "bostezo"            # yawn
+    MOLESTO = "molesto"            # annoyed / furrowed brow
+    ESCUCHA_ACTIVA = "escucha"     # attentive listen
     MAREADO = "mareado"            # dizzy / spiral eyes
-    TRISTE = "triste"              # sad
-    ENFADADO = "enfadado"          # angry
-    TIMIDO = "timido"              # shy / heavy blush
-    CURIOSO = "curioso"            # curious / tilted gaze
-    TRAVIESO = "travieso"          # mischievous
+    FESTEJO = "festejo"            # celebration / confetti
+    SALUDO = "saludo"              # greeting wave / spark
+    ANIMO = "animo"                # encouraging cheer / glowing pulse
 
     # --- 15 Habit Scenes ---------------------------------------------------
-    HABIT_POMODORO = "pomodoro"         # typing on laptop with countdown
-    HABIT_AGUA = "agua"                 # drinking water glass 6/8
-    HABIT_LECTURA = "lectura"           # turning pages of book
-    HABIT_EJERCICIO = "ejercicio"       # lifting weights with sweat drops
-    HABIT_MEDITACION = "meditacion"     # zen breathing sun
-    HABIT_CAMINAR = "caminar"           # animated walking steps
-    HABIT_ESTUDIO = "estudio"           # lightbulb idea glowing
-    HABIT_DORMIR = "dormir_temprano"    # crescent moon & night stars
-    HABIT_COMIDA = "comida_saludable"   # sparkling apple
-    HABIT_POSTURA = "postura"           # spine alignment stretch
-    HABIT_PAUSA_VISUAL = "pausa_visual" # 20-20-20 eye rest guide
-    HABIT_AGRADECIMIENTO = "agradecimiento" # journal & quill writing
-    HABIT_RESPIRACION = "respiracion"   # 4-4-4 breathing circle
-    HABIT_LIMPIEZA = "limpieza"         # sparkling tidiness
-    HABIT_DESCONEXION = "desconexion"   # screen off zen leaf
-
-    # --- Celebration -------------------------------------------------------
-    FESTEJO = "festejo"            # confetti victory explosion
+    HABIT_POMODORO = "pomodoro"
+    HABIT_AGUA = "agua"
+    HABIT_LECTURA = "lectura"
+    HABIT_EJERCICIO = "ejercicio"
+    HABIT_MEDITACION = "meditacion"
+    HABIT_CAMINAR = "caminar"
+    HABIT_ESTUDIO = "estudio"
+    HABIT_DORMIR = "dormir_temprano"
+    HABIT_COMIDA = "comida_saludable"
+    HABIT_POSTURA = "postura"
+    HABIT_PAUSA_VISUAL = "pausa_visual"
+    HABIT_AGRADECIMIENTO = "agradecimiento"
+    HABIT_RESPIRACION = "respiracion"
+    HABIT_LIMPIEZA = "limpieza"
+    HABIT_DESCONEXION = "desconexion"
 
 
-# Backward compatibility aliases
-KAIState = TrokoState
+TrokoState = KAIState
 
-# Aliases map for flexible transitions (Spanish / English / short names)
-_STATE_ALIASES: dict[str, TrokoState] = {
+_STATE_ALIASES: dict[str, KAIState] = {
     # Operational
-    "idle": TrokoState.REPOSO,
-    "reposo": TrokoState.REPOSO,
-    "listening": TrokoState.ESCUCHA,
-    "escucha": TrokoState.ESCUCHA,
-    "thinking": TrokoState.PIENSA,
-    "piensa": TrokoState.PIENSA,
-    "speaking": TrokoState.HABLA,
-    "habla": TrokoState.HABLA,
-    "alert": TrokoState.ALERTA,
-    "alerta": TrokoState.ALERTA,
-    "notification": TrokoState.NOTIFICACION,
-    "notificacion": TrokoState.NOTIFICACION,
-    "sleeping": TrokoState.SUENO,
-    "sueno": TrokoState.SUENO,
-    "sleep": TrokoState.SUENO,
+    "idle": KAIState.REPOSO,
+    "reposo": KAIState.REPOSO,
+    "listening": KAIState.ESCUCHA,
+    "escucha": KAIState.ESCUCHA,
+    "thinking": KAIState.PIENSA,
+    "piensa": KAIState.PIENSA,
+    "speaking": KAIState.HABLA,
+    "habla": KAIState.HABLA,
+    "alert": KAIState.ALERTA,
+    "alerta": KAIState.ALERTA,
+    "notification": KAIState.NOTIFICACION,
+    "notificacion": KAIState.NOTIFICACION,
+    "sleeping": KAIState.SUENO,
+    "sueno": KAIState.SUENO,
+    "sleep": KAIState.SUENO,
 
     # 12 Emotions
-    "happy": TrokoState.CONTENTO,
-    "contento": TrokoState.CONTENTO,
-    "in_love": TrokoState.ENAMORADO,
-    "enamorado": TrokoState.ENAMORADO,
-    "love": TrokoState.ENAMORADO,
-    "surprise": TrokoState.SORPRESA,
-    "sorpresa": TrokoState.SORPRESA,
-    "proud": TrokoState.ORGULLOSO,
-    "orgulloso": TrokoState.ORGULLOSO,
-    "wink": TrokoState.GUINO,
-    "guino": TrokoState.GUINO,
-    "guiño": TrokoState.GUINO,
-    "yawn": TrokoState.BOSTEZO,
-    "bostezo": TrokoState.BOSTEZO,
-    "dizzy": TrokoState.MAREADO,
-    "mareado": TrokoState.MAREADO,
-    "sad": TrokoState.TRISTE,
-    "triste": TrokoState.TRISTE,
-    "angry": TrokoState.ENFADADO,
-    "enfadado": TrokoState.ENFADADO,
-    "enojado": TrokoState.ENFADADO,
-    "shy": TrokoState.TIMIDO,
-    "timido": TrokoState.TIMIDO,
-    "tímido": TrokoState.TIMIDO,
-    "curious": TrokoState.CURIOSO,
-    "curioso": TrokoState.CURIOSO,
-    "mischievous": TrokoState.TRAVIESO,
-    "travieso": TrokoState.TRAVIESO,
+    "happy": KAIState.CONTENTO,
+    "contento": KAIState.CONTENTO,
+    "feliz": KAIState.CONTENTO,
+    "in_love": KAIState.ENAMORADO,
+    "enamorado": KAIState.ENAMORADO,
+    "love": KAIState.ENAMORADO,
+    "surprise": KAIState.SORPRESA,
+    "sorpresa": KAIState.SORPRESA,
+    "proud": KAIState.ORGULLOSO,
+    "orgulloso": KAIState.ORGULLOSO,
+    "wink": KAIState.GUINO,
+    "guino": KAIState.GUINO,
+    "guiño": KAIState.GUINO,
+    "yawn": KAIState.BOSTEZO,
+    "bostezo": KAIState.BOSTEZO,
+    "annoyed": KAIState.MOLESTO,
+    "molesto": KAIState.MOLESTO,
+    "enfadado": KAIState.MOLESTO,
+    "enojado": KAIState.MOLESTO,
+    "dizzy": KAIState.MAREADO,
+    "mareado": KAIState.MAREADO,
+    "celebration": KAIState.FESTEJO,
+    "festejo": KAIState.FESTEJO,
+    "saludo": KAIState.SALUDO,
+    "greeting": KAIState.SALUDO,
+    "hola": KAIState.SALUDO,
+    "animo": KAIState.ANIMO,
+    "ánimo": KAIState.ANIMO,
+    "cheer": KAIState.ANIMO,
+    "triste": KAIState.MOLESTO,
+    "timido": KAIState.CONTENTO,
+    "curioso": KAIState.ESCUCHA,
+    "travieso": KAIState.GUINO,
 
     # Habits
-    "hydration": TrokoState.HABIT_AGUA,
-    "water": TrokoState.HABIT_AGUA,
-    "workout": TrokoState.HABIT_EJERCICIO,
-    "reading": TrokoState.HABIT_LECTURA,
-    "meditation": TrokoState.HABIT_MEDITACION,
-    "focus": TrokoState.HABIT_POMODORO,
-    "celebration": TrokoState.FESTEJO,
+    "hydration": KAIState.HABIT_AGUA,
+    "water": KAIState.HABIT_AGUA,
+    "workout": KAIState.HABIT_EJERCICIO,
+    "reading": KAIState.HABIT_LECTURA,
+    "meditation": KAIState.HABIT_MEDITACION,
+    "focus": KAIState.HABIT_POMODORO,
 }
 
-# Auto return to REPOSO (seconds)
-_AUTO_RETURN_SECONDS: dict[TrokoState, float] = {
-    TrokoState.ESCUCHA: 30.0,
-    TrokoState.PIENSA: 60.0,
-    TrokoState.HABLA: 20.0,
-    TrokoState.ALERTA: 8.0,
-    TrokoState.NOTIFICACION: 5.0,
-    TrokoState.SUENO: 0,           # Manual wake
-    TrokoState.CONTENTO: 4.0,
-    TrokoState.ENAMORADO: 5.0,
-    TrokoState.SORPRESA: 4.0,
-    TrokoState.ORGULLOSO: 5.0,
-    TrokoState.GUINO: 3.5,
-    TrokoState.BOSTEZO: 4.5,
-    TrokoState.MAREADO: 5.0,
-    TrokoState.TRISTE: 5.0,
-    TrokoState.ENFADADO: 4.5,
-    TrokoState.TIMIDO: 5.0,
-    TrokoState.CURIOSO: 4.5,
-    TrokoState.TRAVIESO: 4.5,
-    TrokoState.FESTEJO: 7.0,
+_AUTO_RETURN_SECONDS: dict[KAIState, float] = {
+    KAIState.ESCUCHA: 30.0,
+    KAIState.PIENSA: 60.0,
+    KAIState.HABLA: 20.0,
+    KAIState.ALERTA: 8.0,
+    KAIState.NOTIFICACION: 5.0,
+    KAIState.SUENO: 0,
+    KAIState.CONTENTO: 4.0,
+    KAIState.ENAMORADO: 5.0,
+    KAIState.SORPRESA: 4.0,
+    KAIState.ORGULLOSO: 5.0,
+    KAIState.GUINO: 3.5,
+    KAIState.BOSTEZO: 4.5,
+    KAIState.MOLESTO: 4.5,
+    KAIState.MAREADO: 5.0,
+    KAIState.FESTEJO: 7.0,
+    KAIState.SALUDO: 4.0,
+    KAIState.ANIMO: 5.0,
 
-    # Habits stay for interaction unless dismissed or auto 8s
-    TrokoState.HABIT_POMODORO: 0,  # Managed by pomodoro loop
-    TrokoState.HABIT_AGUA: 12.0,
-    TrokoState.HABIT_LECTURA: 10.0,
-    TrokoState.HABIT_EJERCICIO: 10.0,
-    TrokoState.HABIT_MEDITACION: 12.0,
+    KAIState.HABIT_POMODORO: 0,
+    KAIState.HABIT_AGUA: 12.0,
+    KAIState.HABIT_LECTURA: 10.0,
+    KAIState.HABIT_EJERCICIO: 10.0,
+    KAIState.HABIT_MEDITACION: 12.0,
 }
 
 
 @dataclass
 class StateMachine:
-    """Thread-safe state machine for Troko."""
-
-    _current: TrokoState = field(default=TrokoState.REPOSO, init=False)
+    _current: KAIState = field(default=KAIState.REPOSO, init=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False)
     _return_timer: Optional[threading.Timer] = field(default=None, init=False)
     _sleep_start_time: Optional[datetime] = field(default=None, init=False)
 
     @property
-    def current(self) -> TrokoState:
+    def current(self) -> KAIState:
         with self._lock:
             return self._current
 
@@ -191,16 +192,13 @@ class StateMachine:
         with self._lock:
             return self._sleep_start_time
 
-    def transition(self, target: Union[TrokoState, str], force: bool = False, **meta) -> bool:
-        """
-        Transition to a new state. Accepts enum or string (auto-normalized).
-        """
+    def transition(self, target: Union[KAIState, str], force: bool = False, **meta) -> bool:
         if isinstance(target, str):
             key = target.lower().strip()
             new_state = _STATE_ALIASES.get(key)
             if new_state is None:
                 try:
-                    new_state = TrokoState(key)
+                    new_state = KAIState(key)
                 except ValueError:
                     logger.warning("Unknown state target: %s", target)
                     return False
@@ -218,10 +216,9 @@ class StateMachine:
                 self._return_timer.cancel()
                 self._return_timer = None
 
-            # Track sleep duration for wake reports
-            if new_state == TrokoState.SUENO:
+            if new_state == KAIState.SUENO:
                 self._sleep_start_time = datetime.now()
-            elif old_state == TrokoState.SUENO and new_state != TrokoState.SUENO:
+            elif old_state == KAIState.SUENO and new_state != KAIState.SUENO:
                 sleep_start = self._sleep_start_time
                 self._sleep_start_time = None
                 if sleep_start:
@@ -239,22 +236,21 @@ class StateMachine:
 
     def _auto_return(self) -> None:
         with self._lock:
-            if self._current not in (TrokoState.REPOSO, TrokoState.SUENO, TrokoState.HABIT_POMODORO):
-                self._current = TrokoState.REPOSO
+            if self._current not in (KAIState.REPOSO, KAIState.SUENO, KAIState.HABIT_POMODORO):
+                self._current = KAIState.REPOSO
                 self._return_timer = None
         logger.debug("State: auto-return → reposo")
-        bus.emit("on_state_change", state=TrokoState.REPOSO.value, previous="auto")
+        bus.emit("on_state_change", state=KAIState.REPOSO.value, previous="auto")
 
     def sleep(self) -> None:
-        self.transition(TrokoState.SUENO)
+        self.transition(KAIState.SUENO)
 
     def wake(self) -> None:
-        self.transition(TrokoState.REPOSO)
+        self.transition(KAIState.REPOSO)
 
     def feedback(self, text: str = "Listo", success: bool = True) -> None:
-        """Trigger a brief checkmark or notification feedback badge."""
         bus.emit("on_feedback_badge", text=text, success=success)
-        self.transition(TrokoState.NOTIFICACION)
+        self.transition(KAIState.NOTIFICACION)
 
 
 state_machine = StateMachine()

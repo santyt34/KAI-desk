@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 # --- VAD parameters -------------------------------------------------------
 _SAMPLE_RATE    = 16_000
 _BLOCK_SIZE     = 512          # frames per callback (~32 ms)
-_SILENCE_THRESH = 0.006        # Sensitive RMS threshold for laptop/headset mics
+_SILENCE_THRESH = 0.0035       # Sensitive RMS threshold for laptop/headset mics
 _SILENCE_SECS   = 1.1          # seconds of silence to end recording
-_MAX_RECORD_SECS = 20          # safety cap
-_PRE_BUFFER_BLOCKS = 8         # keep N blocks before speech starts
+_MAX_RECORD_SECS = 15          # safety cap
+_PRE_BUFFER_BLOCKS = 12        # keep N blocks before speech starts
 
 
 class WhisperSTT:
@@ -158,6 +158,9 @@ class WhisperSTT:
                         recorded.extend(pre_buffer)
                         pre_buffer.clear()
                         logger.debug("Speech detected (rms=%.4f)", rms)
+                    elif now - start_time >= 5.0:
+                        logger.debug("No speech detected within 5 seconds – returning to idle")
+                        break
                 else:
                     recorded.append(chunk)
                     if rms < _SILENCE_THRESH:

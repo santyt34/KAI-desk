@@ -73,6 +73,7 @@ hiddenimports = [
     "ui.island_window",
     "ui.eye_renderer",
     "ui.animation_engine",
+    "ui.scene_generator",
     "ui.tray_menu",
     "audio.wake_word",
     "audio.stt_whisper",
@@ -118,7 +119,7 @@ excludes = [
 # ---------------------------------------------------------------------------
 a = Analysis(
     [str(ROOT / "main.py")],
-    pathex=[str(ROOT)],
+    pathex=[str(ROOT), str(ROOT / "src")],
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,

@@ -1,0 +1,1 @@
+"""KAI-Desk config package."""
